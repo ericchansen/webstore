@@ -22,6 +22,7 @@ interface CreateOrderRequest {
   shippingCost: number;
   tax: number;
   total: number;
+  paymentIntentId?: string;
 }
 
 function generateOrderNumber(): string {
@@ -65,6 +66,9 @@ export async function POST(request: NextRequest) {
         shippingCost: body.shippingCost,
         tax: body.tax,
         total: body.total,
+        paymentIntentId: body.paymentIntentId || null,
+        paymentStatus: body.paymentIntentId ? "SUCCEEDED" : "PENDING",
+        status: body.paymentIntentId ? "CONFIRMED" : "PENDING",
         items: {
           create: body.items.map((item) => ({
             productId: item.productId,

@@ -48,6 +48,15 @@ export const testCustomer = {
   },
 } as const;
 
+// Stripe test card numbers: https://docs.stripe.com/testing
+export const stripeTestCards = {
+  success: "4242424242424242",
+  decline: "4000000000000002",
+  insufficientFunds: "4000000000009995",
+  requires3DS: "4000002500003155",
+  expiredCard: "4000000000000069",
+} as const;
+
 export const routes = {
   home: "/",
   products: "/products",

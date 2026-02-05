@@ -1,0 +1,161 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+
+env:
+  NODE_VERSION: '20'
+  AZURE_RESOURCE_GROUP: rg-webstore-${{ inputs.environment || 'dev' }}
+
+jobs:
+  build-and-push:
+    name: Build & Push Image
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Generate Prisma Client
+        run: npx prisma generate
+      
+      - name: Run tests
+        run: npm run test
+      
+      - name: Build application
+        run: npm run build
+        env:
+          DATABASE_URL: "postgresql://placeholder:placeholder@localhost:5432/placeholder"
+      
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      
+      - name: Get ACR credentials
+        id: acr
+        run: |
+          ACR_NAME="acrwebstore${{ inputs.environment || 'dev' }}"
+          echo "name=$ACR_NAME" >> $GITHUB_OUTPUT
+          echo "server=$ACR_NAME.azurecr.io" >> $GITHUB_OUTPUT
+      
+      - name: Login to ACR
+        uses: azure/docker-login@v2
+        with:
+          login-server: ${{ steps.acr.outputs.server }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+      
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.acr.outputs.server }}/webstore
+          tags: |
+            type=sha,prefix=
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' }}
+      
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  deploy:
+    name: Deploy to Azure
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    environment: ${{ inputs.environment || 'dev' }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      
+      - name: Deploy Container App
+        uses: azure/cli@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
+            ENVIRONMENT="${{ inputs.environment || 'dev' }}"
+            ACR_SERVER="acrwebstore${ENVIRONMENT}.azurecr.io"
+            IMAGE="${ACR_SERVER}/webstore:${{ github.sha }}"
+            
+            az containerapp update \
+              --name ca-webstore-${ENVIRONMENT} \
+              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+              --image $IMAGE
+
+  smoke-test:
+    name: Smoke Tests
+    runs-on: ubuntu-latest
+    needs: deploy
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+      
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      
+      - name: Get App URL
+        id: app-url
+        uses: azure/cli@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
+            ENVIRONMENT="${{ inputs.environment || 'dev' }}"
+            FQDN=$(az containerapp show \
+              --name ca-webstore-${ENVIRONMENT} \
+              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+              --query "properties.configuration.ingress.fqdn" -o tsv)
+            echo "url=https://${FQDN}" >> $GITHUB_OUTPUT
+      
+      - name: Run smoke tests against deployed app
+        run: npx playwright test --project="Desktop Edge" || npx playwright test --project="chromium"
+        env:
+          BASE_URL: ${{ steps.app-url.outputs.url }}
+          CI: true
+      
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-smoke-report
+          path: playwright-report/
+          retention-days: 7

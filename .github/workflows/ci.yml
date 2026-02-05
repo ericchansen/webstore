@@ -73,6 +73,20 @@ jobs:
   e2e-tests:
     name: E2E Tests
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: webstore
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       
@@ -88,6 +102,13 @@ jobs:
       - name: Generate Prisma Client
         run: npx prisma generate
       
+      - name: Setup database
+        run: |
+          npx prisma db push
+          npm run db:seed
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/webstore?schema=public"
+      
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
       
@@ -95,6 +116,7 @@ jobs:
         run: npx playwright test --project="Desktop Chrome"
         env:
           CI: true
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/webstore?schema=public"
       
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4

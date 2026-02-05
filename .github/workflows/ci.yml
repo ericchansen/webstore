@@ -92,7 +92,7 @@ jobs:
         run: npx playwright install --with-deps chromium
       
       - name: Run E2E tests
-        run: npx playwright test --project="Desktop Edge" || npx playwright test --project="chromium"
+        run: npx playwright test --project="Desktop Chrome"
         env:
           CI: true
       

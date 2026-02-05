@@ -25,6 +25,10 @@ export default defineConfig({
       name: "Desktop Edge",
       use: { ...devices["Desktop Edge"], channel: "msedge" },
     },
+    {
+      name: "Desktop Chrome",
+      use: { ...devices["Desktop Chrome"] },
+    },
     
     // Mobile viewports
     {
@@ -53,7 +57,7 @@ export default defineConfig({
     // Large desktop
     {
       name: "Desktop 1920",
-      use: { viewport: { width: 1920, height: 1080 } },
+      use: { ...devices["Desktop Chrome"], viewport: { width: 1920, height: 1080 } },
     },
   ],
 

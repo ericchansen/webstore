@@ -3,7 +3,8 @@ import { test, expect } from "@playwright/test";
 test.describe("Homepage", () => {
   test("should load successfully", async ({ page }) => {
     await page.goto("/");
-    await expect(page).toHaveTitle(/webstore/i);
+    // Check for store name in title (from storeConfig)
+    await expect(page).toHaveTitle(/Cocoa.*Co/i);
   });
 
   test("should display main content", async ({ page }) => {

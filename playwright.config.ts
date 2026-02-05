@@ -4,6 +4,12 @@ import { defineConfig, devices } from "@playwright/test";
  * Playwright configuration for webstore E2E tests.
  * Supports dual-target testing: local (localhost) and deployed (Azure URL).
  * Set BASE_URL environment variable to test against deployed environments.
+ * 
+ * Usage:
+ *   npx playwright test                      # Run all tests on all browsers
+ *   npx playwright test --project=smoke      # Run smoke tests only (quick validation)
+ *   npx playwright test e2e/smoke.spec.ts    # Run smoke test file
+ *   npx playwright test --project="Desktop Edge"  # Run tests on Edge only
  */
 export default defineConfig({
   testDir: "./e2e",
@@ -13,13 +19,27 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: process.env.CI ? "github" : "html",
   
+  // Timeout configuration for reliable tests
+  timeout: 30000,
+  expect: {
+    timeout: 10000,
+  },
+  
   use: {
     baseURL: process.env.BASE_URL || "http://localhost:3000",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
+    video: "retain-on-failure",
   },
 
   projects: [
+    // Smoke tests - quick validation for deployments
+    {
+      name: "smoke",
+      testMatch: /smoke\.spec\.ts/,
+      use: { ...devices["Desktop Edge"], channel: "msedge" },
+    },
+    
     // Desktop browsers
     {
       name: "Desktop Edge",

@@ -76,7 +76,7 @@ export function ProductDetail({
     <div data-testid="product-detail" className="grid gap-8 lg:grid-cols-2">
       {/* Images */}
       <div className="space-y-4">
-        <div className="relative aspect-square overflow-hidden rounded-lg bg-muted">
+        <div data-testid="product-image" className="relative aspect-square overflow-hidden rounded-lg bg-muted">
           {selectedImage ? (
             <Image
               src={selectedImage}

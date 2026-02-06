@@ -260,7 +260,7 @@ export default function CheckoutPage() {
 
         {/* Order Summary */}
         <div>
-          <Card className="sticky top-24">
+          <Card data-testid="order-summary" className="sticky top-24">
             <CardHeader>
               <CardTitle>Order Summary</CardTitle>
             </CardHeader>
@@ -268,7 +268,7 @@ export default function CheckoutPage() {
               {/* Items Preview */}
               <div className="max-h-48 space-y-3 overflow-y-auto">
                 {items.map((item) => (
-                  <div key={item.id} className="flex gap-3">
+                  <div key={item.id} data-testid="order-item" className="flex gap-3">
                     <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded bg-muted">
                       {item.imageUrl ? (
                         <Image
@@ -304,11 +304,11 @@ export default function CheckoutPage() {
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Subtotal</span>
-                  <span>{formatPrice(subtotal)}</span>
+                  <span data-testid="checkout-subtotal">{formatPrice(subtotal)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Shipping</span>
-                  <span>
+                  <span data-testid="checkout-shipping">
                     {shippingCost === 0
                       ? "Free"
                       : formatPrice(shippingCost)}
@@ -316,7 +316,7 @@ export default function CheckoutPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Tax</span>
-                  <span>{formatPrice(tax)}</span>
+                  <span data-testid="checkout-tax">{formatPrice(tax)}</span>
                 </div>
               </div>
 
@@ -324,7 +324,7 @@ export default function CheckoutPage() {
 
               <div className="flex justify-between text-lg font-semibold">
                 <span>Total</span>
-                <span>{formatPrice(total)}</span>
+                <span data-testid="checkout-total">{formatPrice(total)}</span>
               </div>
 
               {shippingCost === 0 && (
@@ -335,6 +335,7 @@ export default function CheckoutPage() {
             </CardContent>
             <CardFooter>
               <Button
+                data-testid="place-order-button"
                 type="submit"
                 size="lg"
                 className="w-full"

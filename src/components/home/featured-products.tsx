@@ -13,7 +13,7 @@ export function FeaturedProducts({ products }: FeaturedProductsProps) {
   if (products.length === 0) return null;
 
   return (
-    <section className="py-16">
+    <section data-testid="featured-section" className="py-16">
       <div className="container mx-auto px-4">
         <div className="text-center">
           <h2 className="text-3xl font-bold">Featured Collection</h2>

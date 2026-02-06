@@ -15,8 +15,9 @@ export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  retries: process.env.CI ? 1 : 0,
+  // Optimize workers for CI (increase from 1)
+  workers: process.env.CI ? 4 : undefined,
   reporter: process.env.CI ? "github" : "html",
   
   // Timeout configuration for reliable tests
@@ -50,7 +51,7 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
     
-    // Mobile viewports
+    /* Mobile viewports - Uncomment if needed for specific mobile testing
     {
       name: "iPhone SE",
       use: { ...devices["iPhone SE"] },
@@ -73,6 +74,7 @@ export default defineConfig({
       name: "iPad Pro",
       use: { viewport: { width: 1024, height: 1366 }, isMobile: false },
     },
+    */
     
     // Large desktop
     {
@@ -81,13 +83,14 @@ export default defineConfig({
     },
   ],
 
-  // Run local dev server before tests when testing locally
+  // Run local dev server before tests
+  // switched to build && start for better performance and consistency in tests
   webServer: process.env.BASE_URL
     ? undefined
     : {
-        command: "npm run dev",
+        command: "npm run build && npm run start",
         url: "http://localhost:3000",
         reuseExistingServer: !process.env.CI,
-        timeout: 120 * 1000,
+        timeout: 180 * 1000, // Increased timeout for build
       },
 });

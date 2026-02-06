@@ -73,7 +73,7 @@ export function ProductDetail({
   const weight = metadata?.weight as string | undefined;
 
   return (
-    <div className="grid gap-8 lg:grid-cols-2">
+    <div data-testid="product-detail" className="grid gap-8 lg:grid-cols-2">
       {/* Images */}
       <div className="space-y-4">
         <div className="relative aspect-square overflow-hidden rounded-lg bg-muted">
@@ -125,12 +125,12 @@ export function ProductDetail({
           <p className="text-sm text-muted-foreground uppercase tracking-wide">
             {categoryName}
           </p>
-          <h1 className="mt-1 text-3xl font-bold">{name}</h1>
+          <h1 data-testid="detail-product-name" className="mt-1 text-3xl font-bold">{name}</h1>
         </div>
 
         {/* Price */}
         <div className="flex items-center gap-3">
-          <span className="text-3xl font-bold">{formatPrice(price)}</span>
+          <span data-testid="detail-product-price" className="text-3xl font-bold">{formatPrice(price)}</span>
           {compareAtPrice && (
             <>
               <span className="text-xl text-muted-foreground line-through">
@@ -190,6 +190,7 @@ export function ProductDetail({
             </Button>
           </div>
           <Button
+            data-testid="add-to-cart"
             size="lg"
             className="flex-1"
             onClick={handleAddToCart}

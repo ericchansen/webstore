@@ -59,7 +59,7 @@ export function ProductCard({
     : null;
 
   return (
-    <Card className="group overflow-hidden transition-shadow hover:shadow-lg">
+    <Card data-testid="product-card" className="group overflow-hidden transition-shadow hover:shadow-lg">
       <Link href={`/products/${slug}`}>
         {/* Image */}
         <div className="relative aspect-square overflow-hidden bg-muted">
@@ -91,13 +91,13 @@ export function ProductCard({
               {categoryName}
             </p>
           )}
-          <h3 className="mt-1 font-semibold leading-tight line-clamp-2">
+          <h3 data-testid="product-name" className="mt-1 font-semibold leading-tight line-clamp-2">
             {name}
           </h3>
           <div className="mt-2 flex items-center gap-2">
-            <span className="font-bold">{formatPrice(price)}</span>
+            <span data-testid="product-price" className="font-bold">{formatPrice(price)}</span>
             {compareAtPrice && (
-              <span className="text-sm text-muted-foreground line-through">
+              <span data-testid="compare-at-price" className="text-sm text-muted-foreground line-through">
                 {formatPrice(compareAtPrice)}
               </span>
             )}
@@ -107,6 +107,7 @@ export function ProductCard({
 
       <CardFooter className="p-4 pt-0">
         <Button
+          data-testid="add-to-cart"
           className="w-full"
           onClick={handleAddToCart}
           disabled={!inStock}

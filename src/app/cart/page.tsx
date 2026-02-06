@@ -33,14 +33,14 @@ export default function CartPage() {
     return (
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold">Shopping Cart</h1>
-        <div className="mt-12 flex flex-col items-center justify-center gap-4 text-center">
+        <div data-testid="empty-cart-message" className="mt-12 flex flex-col items-center justify-center gap-4 text-center">
           <ShoppingBag className="h-24 w-24 text-muted-foreground/30" />
           <h2 className="text-xl font-semibold">Your cart is empty</h2>
           <p className="text-muted-foreground">
             Looks like you haven&apos;t added any chocolates yet
           </p>
           <Button asChild size="lg" className="mt-4">
-            <Link href="/products">Start Shopping</Link>
+            <Link href="/products">Continue Shopping</Link>
           </Button>
         </div>
       </div>
@@ -56,7 +56,7 @@ export default function CartPage() {
         <div className="lg:col-span-2">
           <div className="space-y-4">
             {items.map((item) => (
-              <Card key={item.id}>
+              <Card key={item.id} data-testid="cart-item">
                 <CardContent className="flex gap-4 p-4">
                   {/* Image */}
                   <div className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-md bg-muted">
@@ -93,6 +93,7 @@ export default function CartPage() {
                       {/* Quantity */}
                       <div className="flex items-center gap-2">
                         <Button
+                          data-testid="quantity-decrement"
                           variant="outline"
                           size="icon"
                           className="h-8 w-8"
@@ -102,8 +103,9 @@ export default function CartPage() {
                         >
                           <Minus className="h-3 w-3" />
                         </Button>
-                        <span className="w-8 text-center">{item.quantity}</span>
+                        <span data-testid="quantity-input" className="w-8 text-center">{item.quantity}</span>
                         <Button
+                          data-testid="quantity-increment"
                           variant="outline"
                           size="icon"
                           className="h-8 w-8"
@@ -117,6 +119,7 @@ export default function CartPage() {
 
                       {/* Remove */}
                       <Button
+                        data-testid="remove-item"
                         variant="ghost"
                         size="sm"
                         className="text-muted-foreground hover:text-destructive"
@@ -135,14 +138,14 @@ export default function CartPage() {
 
         {/* Order Summary */}
         <div>
-          <Card className="sticky top-24">
+          <Card data-testid="cart-summary" className="sticky top-24">
             <CardHeader>
               <CardTitle>Order Summary</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal</span>
-                <span>{formatPrice(subtotal)}</span>
+                <span data-testid="cart-subtotal">{formatPrice(subtotal)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Shipping</span>
@@ -155,7 +158,7 @@ export default function CartPage() {
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-2">
-              <Button asChild size="lg" className="w-full">
+              <Button data-testid="checkout-button" asChild size="lg" className="w-full">
                 <Link href="/checkout">Proceed to Checkout</Link>
               </Button>
               <Button asChild variant="outline" className="w-full">

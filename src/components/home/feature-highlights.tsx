@@ -10,7 +10,7 @@ const iconMap: Record<string, LucideIcon> = {
 
 export function FeatureHighlights() {
   return (
-    <section className="border-y bg-background py-12">
+    <section data-testid="features-section" className="border-y bg-background py-12">
       <div className="container mx-auto px-4">
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           {storeConfig.features.map((feature) => {
@@ -18,6 +18,7 @@ export function FeatureHighlights() {
             return (
               <div
                 key={feature.title}
+                data-testid="feature-card"
                 className="flex flex-col items-center text-center"
               >
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">

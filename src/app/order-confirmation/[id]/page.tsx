@@ -48,10 +48,10 @@ export default async function OrderConfirmationPage({
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
             <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
           </div>
-          <h1 className="text-3xl font-bold">Order Confirmed!</h1>
+          <h1 data-testid="success-message" className="text-3xl font-bold">Order Confirmed!</h1>
           <p className="mt-2 text-muted-foreground">
             Thank you for your order. We&apos;ve sent a confirmation to{" "}
-            <span className="font-medium text-foreground">{order.email}</span>
+            <span data-testid="contact-email" className="font-medium text-foreground">{order.email}</span>
           </p>
         </div>
 
@@ -60,7 +60,7 @@ export default async function OrderConfirmationPage({
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Order Details</CardTitle>
-              <span className="text-sm font-mono text-muted-foreground">
+              <span data-testid="order-number" className="text-sm font-mono text-muted-foreground">
                 #{order.orderNumber}
               </span>
             </div>
@@ -69,7 +69,7 @@ export default async function OrderConfirmationPage({
             {/* Items */}
             <div className="space-y-3">
               {order.items.map((item) => (
-                <div key={item.id} className="flex justify-between">
+                <div key={item.id} data-testid="order-item" className="flex justify-between">
                   <div>
                     <p className="font-medium">{item.productName}</p>
                     <p className="text-sm text-muted-foreground">
@@ -107,7 +107,7 @@ export default async function OrderConfirmationPage({
 
             <div className="flex justify-between text-lg font-bold">
               <span>Total</span>
-              <span>{formatPrice(Number(order.total))}</span>
+              <span data-testid="order-total">{formatPrice(Number(order.total))}</span>
             </div>
           </CardContent>
         </Card>
@@ -121,7 +121,7 @@ export default async function OrderConfirmationPage({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <address className="not-italic text-muted-foreground">
+            <address data-testid="shipping-address" className="not-italic text-muted-foreground">
               <p className="font-medium text-foreground">{order.shippingName}</p>
               <p>{order.shippingAddress}</p>
               <p>

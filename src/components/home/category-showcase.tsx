@@ -24,7 +24,7 @@ export function CategoryShowcase({ categories }: CategoryShowcaseProps) {
   if (categories.length === 0) return null;
 
   return (
-    <section className="bg-muted/50 py-16">
+    <section data-testid="categories-section" className="bg-muted/50 py-16">
       <div className="container mx-auto px-4">
         <div className="text-center">
           <h2 className="text-3xl font-bold">Shop by Category</h2>
@@ -38,6 +38,7 @@ export function CategoryShowcase({ categories }: CategoryShowcaseProps) {
             <Link
               key={category.id}
               href={`/products?category=${category.slug}`}
+              data-testid="category-card"
             >
               <Card className="group overflow-hidden transition-shadow hover:shadow-lg">
                 <div className="relative aspect-square">

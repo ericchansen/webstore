@@ -5,6 +5,7 @@ import { BasePage } from "./base.page";
  * Page object for the Product Detail Page
  */
 export class ProductDetailPage extends BasePage {
+  readonly productDetail: Locator;
   readonly productImage: Locator;
   readonly productGallery: Locator;
   readonly productName: Locator;
@@ -22,10 +23,12 @@ export class ProductDetailPage extends BasePage {
 
   constructor(page: Page) {
     super(page);
+    // Scope selectors to the main product detail section to avoid related products
+    this.productDetail = page.getByTestId("product-detail");
     this.productImage = page.getByTestId("product-image");
     this.productGallery = page.getByTestId("product-gallery");
-    this.productName = page.getByTestId("product-name");
-    this.productPrice = page.getByTestId("product-price");
+    this.productName = page.getByTestId("detail-product-name");
+    this.productPrice = page.getByTestId("detail-product-price");
     this.compareAtPrice = page.getByTestId("compare-at-price");
     this.productDescription = page.getByTestId("product-description");
     this.quantityInput = page.getByTestId("quantity-input");

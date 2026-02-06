@@ -89,7 +89,6 @@ export class ProductsPage extends BasePage {
     } catch {
       // No loading spinner shown
     }
-    await this.page.waitForLoadState("networkidle");
   }
 
   async getProductNames(): Promise<string[]> {

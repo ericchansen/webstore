@@ -107,7 +107,7 @@ export function ProductCard({
 
       <CardFooter className="p-4 pt-0">
         <Button
-          data-testid="add-to-cart"
+          data-testid="card-add-to-cart"
           className="w-full"
           onClick={handleAddToCart}
           disabled={!inStock}

@@ -22,7 +22,7 @@ export class ProductsPage extends BasePage {
   constructor(page: Page) {
     super(page);
     this.pageTitle = page.getByRole("heading", { level: 1 });
-    this.productGrid = page.getByTestId("product-grid");
+    this.productGrid = page.getByTestId("product-grid").first();
     this.productCards = page.getByTestId("product-card");
     this.filtersPanel = page.getByTestId("filters-panel");
     this.categoryFilter = page.getByTestId("category-filter");
@@ -56,9 +56,9 @@ export class ProductsPage extends BasePage {
   }
 
   async filterByCategory(category: string) {
-    await this.categoryFilter.click();
-    await this.page.getByRole("option", { name: category }).click();
-    await this.waitForProductsUpdate();
+    await this.categoryFilter.getByRole("link", { name: category }).click();
+    await this.waitForPageLoad();
+    await expect(this.productCards.first()).toBeVisible();
   }
 
   async sortBy(option: "price-asc" | "price-desc" | "newest" | "popular") {
@@ -92,12 +92,8 @@ export class ProductsPage extends BasePage {
   }
 
   async getProductNames(): Promise<string[]> {
-    const names: string[] = [];
-    const count = await this.productCards.count();
-    for (let i = 0; i < count; i++) {
-      const name = await this.productCards.nth(i).getByTestId("product-name").textContent();
-      if (name) names.push(name);
-    }
-    return names;
+    await expect(this.productCards.first()).toBeVisible();
+    const names = await this.productCards.locator('[data-testid="product-name"]').allTextContents();
+    return names.filter(n => n.length > 0);
   }
 }

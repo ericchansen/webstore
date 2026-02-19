@@ -122,7 +122,7 @@ export function ProductDetail({
       {/* Product Info */}
       <div className="space-y-6">
         <div>
-          <p className="text-sm text-muted-foreground uppercase tracking-wide">
+          <p data-testid="category-breadcrumb" className="text-sm text-muted-foreground uppercase tracking-wide">
             {categoryName}
           </p>
           <h1 data-testid="detail-product-name" className="mt-1 text-3xl font-bold">{name}</h1>
@@ -154,11 +154,11 @@ export function ProductDetail({
 
         {/* Description */}
         {description && (
-          <p className="text-muted-foreground leading-relaxed">{description}</p>
+          <p data-testid="product-description" className="text-muted-foreground leading-relaxed">{description}</p>
         )}
 
         {/* Stock Status */}
-        <div>
+        <div data-testid="stock-status">
           {inStock ? (
             <p className="text-sm text-green-600 dark:text-green-400">
               ✓ In stock{stockCount <= 10 && ` – only ${stockCount} left`}
@@ -174,15 +174,27 @@ export function ProductDetail({
             <Button
               variant="ghost"
               size="icon"
+              data-testid="quantity-decrement"
               onClick={() => setQuantity((q) => Math.max(1, q - 1))}
               disabled={quantity <= 1}
             >
               <Minus className="h-4 w-4" />
             </Button>
-            <span className="w-12 text-center font-medium">{quantity}</span>
+            <input
+              data-testid="quantity-input"
+              type="number"
+              min={1}
+              value={quantity}
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10);
+                if (!isNaN(val) && val >= 1) setQuantity(val);
+              }}
+              className="w-12 text-center font-medium bg-transparent border-0 focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
+            />
             <Button
               variant="ghost"
               size="icon"
+              data-testid="quantity-increment"
               onClick={() => setQuantity((q) => q + 1)}
               disabled={!inStock}
             >
@@ -192,7 +204,7 @@ export function ProductDetail({
           <Button
             data-testid="add-to-cart"
             size="lg"
-            className="flex-1"
+            className="flex-1 min-h-[44px]"
             onClick={handleAddToCart}
             disabled={!inStock}
           >

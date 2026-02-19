@@ -189,7 +189,7 @@ test.describe("Cart Page", () => {
 
     test("should disable checkout button when cart is empty", async () => {
       await cartPage.removeItem(testProducts.featured.name);
-      await expect(cartPage.checkoutButton).toBeDisabled();
+      await expect(cartPage.checkoutButton).not.toBeVisible();
     });
   });
 

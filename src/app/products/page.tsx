@@ -82,7 +82,7 @@ async function CategoryFilter({ currentCategory }: { currentCategory?: string })
   });
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div data-testid="category-filter" className="flex flex-wrap gap-2">
       <Button
         asChild
         variant={!currentCategory ? "default" : "outline"}

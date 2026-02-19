@@ -18,8 +18,8 @@ export class HomePage extends BasePage {
 
   constructor(page: Page) {
     super(page);
-    this.heroSection = page.getByTestId("hero-section");
-    this.heroTitle = page.getByTestId("hero-title");
+    this.heroSection = page.getByTestId("hero-section").first();
+    this.heroTitle = page.getByTestId("hero-title").first();
     this.heroSubtitle = page.getByTestId("hero-subtitle");
     this.heroCta = page.getByTestId("hero-cta");
     this.categoriesSection = page.getByTestId("categories-section");
@@ -67,7 +67,8 @@ export class HomePage extends BasePage {
   }
 
   async clickFeaturedProduct(productName: string) {
-    await this.featuredProducts.filter({ hasText: productName }).click();
+    const card = this.featuredProducts.filter({ hasText: productName });
+    await card.getByTestId("product-name").click();
     await this.page.waitForURL(/\/products\//);
   }
 }

@@ -30,7 +30,7 @@ export function Header() {
         </Link>
 
         {/* Desktop Navigation */}
-        <div className="hidden md:flex md:gap-x-8">
+        <div data-testid="desktop-nav" className="hidden md:flex md:gap-x-8">
           {navigation.map((item) => (
             <Link
               key={item.name}
@@ -50,10 +50,11 @@ export function Header() {
             className="relative"
             onClick={toggleCart}
             aria-label="Open cart"
+            data-testid="cart-icon"
           >
             <ShoppingBag className="h-5 w-5" />
             {itemCount > 0 && (
-              <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
+              <span data-testid="cart-badge" className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
                 {itemCount > 99 ? "99+" : itemCount}
               </span>
             )}
@@ -62,7 +63,7 @@ export function Header() {
           {/* Mobile Menu */}
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
             <SheetTrigger asChild className="md:hidden">
-              <Button variant="ghost" size="icon" aria-label="Toggle menu">
+              <Button variant="ghost" size="icon" aria-label="Toggle menu" data-testid="mobile-menu-button">
                 {mobileMenuOpen ? (
                   <X className="h-5 w-5" />
                 ) : (
@@ -70,7 +71,7 @@ export function Header() {
                 )}
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-[280px]">
+            <SheetContent side="right" className="w-[280px]" data-testid="mobile-menu">
               <div className="flex flex-col gap-4 pt-8">
                 {navigation.map((item) => (
                   <Link

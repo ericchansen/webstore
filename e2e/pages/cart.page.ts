@@ -49,16 +49,25 @@ export class CartPage extends BasePage {
   async getItemQuantity(productName: string): Promise<number> {
     const item = this.cartItems.filter({ hasText: productName });
     const quantityInput = item.getByTestId("quantity-input");
-    const value = await quantityInput.inputValue();
-    return parseInt(value, 10);
+    const value = await quantityInput.textContent();
+    return parseInt(value || "0", 10);
   }
 
   async updateItemQuantity(productName: string, quantity: number) {
     const item = this.cartItems.filter({ hasText: productName });
-    const quantityInput = item.getByTestId("quantity-input");
-    await quantityInput.fill(quantity.toString());
-    await quantityInput.blur();
-    await this.waitForCartUpdate();
+    const currentQuantity = await this.getItemQuantity(productName);
+    const diff = quantity - currentQuantity;
+    if (diff > 0) {
+      for (let i = 0; i < diff; i++) {
+        await item.getByTestId("quantity-increment").click();
+        await this.waitForCartUpdate();
+      }
+    } else if (diff < 0) {
+      for (let i = 0; i < Math.abs(diff); i++) {
+        await item.getByTestId("quantity-decrement").click();
+        await this.waitForCartUpdate();
+      }
+    }
   }
 
   async incrementItemQuantity(productName: string) {
@@ -98,9 +107,7 @@ export class CartPage extends BasePage {
   }
 
   private async waitForCartUpdate() {
-    await this.page.waitForResponse(
-      (response) => response.url().includes("/api/cart") && response.status() === 200
-    ).catch(() => {});
+    // Cart uses localStorage, not API calls — just wait for DOM update
     await this.page.waitForTimeout(300);
   }
 }

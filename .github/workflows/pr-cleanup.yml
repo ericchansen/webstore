@@ -1,0 +1,130 @@
+name: PR Staging Cleanup
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [master, main]
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+env:
+  STAGING_RESOURCE_GROUP: rg-webstore-staging
+
+jobs:
+  cleanup-staging:
+    name: Cleanup PR Staging Environment
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup environment variables
+        id: setup
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          echo "pr_number=${PR_NUMBER}" >> $GITHUB_OUTPUT
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Delete PR staging resources
+        id: cleanup
+        run: |
+          PR_NUMBER=${{ steps.setup.outputs.pr_number }}
+          RG="${{ env.STAGING_RESOURCE_GROUP }}"
+          DELETED=0
+
+          echo "Cleaning up staging resources for PR #${PR_NUMBER} in ${RG}..."
+
+          # Delete Container Apps first (they depend on the environment)
+          for APP in $(az containerapp list -g "$RG" --query "[?tags.\"pr-number\"=='${PR_NUMBER}'].name" -o tsv 2>/dev/null); do
+            echo "Deleting Container App: ${APP}"
+            az containerapp delete -g "$RG" -n "$APP" --yes --no-wait
+            DELETED=$((DELETED + 1))
+          done
+
+          # Wait for Container App deletion before deleting environment
+          sleep 15
+
+          # Delete Container Apps Environment
+          for ENV_NAME in $(az containerapp env list -g "$RG" --query "[?tags.\"pr-number\"=='${PR_NUMBER}'].name" -o tsv 2>/dev/null); do
+            echo "Deleting Container Apps Environment: ${ENV_NAME}"
+            az containerapp env delete -g "$RG" -n "$ENV_NAME" --yes --no-wait
+            DELETED=$((DELETED + 1))
+          done
+
+          # Delete PostgreSQL Flexible Server
+          for PG in $(az postgres flexible-server list -g "$RG" --query "[?tags.\"pr-number\"=='${PR_NUMBER}'].name" -o tsv 2>/dev/null); do
+            echo "Deleting PostgreSQL server: ${PG}"
+            az postgres flexible-server delete -g "$RG" -n "$PG" --yes
+            DELETED=$((DELETED + 1))
+          done
+
+          # Delete Log Analytics Workspace
+          for LOG in $(az monitor log-analytics workspace list -g "$RG" --query "[?tags.\"pr-number\"=='${PR_NUMBER}'].name" -o tsv 2>/dev/null); do
+            echo "Deleting Log Analytics workspace: ${LOG}"
+            az monitor log-analytics workspace delete -g "$RG" -n "$LOG" --yes --force
+            DELETED=$((DELETED + 1))
+          done
+
+          # Delete ACR image tag (ACR is shared, don't delete the registry)
+          ACR_NAME=$(az acr list -g "$RG" --query "[0].name" -o tsv 2>/dev/null)
+          if [[ -n "$ACR_NAME" ]]; then
+            az acr repository delete --name "$ACR_NAME" --image "webstore:pr-${PR_NUMBER}" --yes 2>/dev/null || true
+          fi
+
+          echo "deleted_count=${DELETED}" >> $GITHUB_OUTPUT
+          echo "Cleanup complete. Deleted ${DELETED} resources."
+
+      - name: Update PR comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = ${{ steps.setup.outputs.pr_number }};
+            const merged = ${{ github.event.pull_request.merged }};
+            const status = merged ? '🎉 Merged' : '❌ Closed';
+            const deletedCount = '${{ steps.cleanup.outputs.deleted_count }}';
+
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              per_page: 100
+            });
+
+            const marker = "## 🚀 PR Staging Environment";
+            const stagingComment = comments.data.find(c =>
+              c.body?.includes(marker) && c.user?.type === 'Bot'
+            );
+
+            if (stagingComment) {
+              const body = [
+                "## 🚀 PR Staging Environment",
+                "",
+                `**Status:** 🗑️ Destroyed (${deletedCount} resources removed)`,
+                "",
+                `The staging environment for this PR has been cleaned up.`,
+                `PR was ${status.toLowerCase()}.`
+              ].join("\n");
+
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: stagingComment.id,
+                body: body
+              });
+            }
+
+      - name: Cleanup summary
+        run: |
+          echo "## 🗑️ PR Staging Cleanup" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Deleted **${{ steps.cleanup.outputs.deleted_count }}** resources for PR #${{ steps.setup.outputs.pr_number }}." >> $GITHUB_STEP_SUMMARY

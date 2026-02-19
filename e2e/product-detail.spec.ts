@@ -86,7 +86,7 @@ test.describe("Product Detail Page", () => {
     });
 
     test("should not go below 1 when decrementing", async () => {
-      await productPage.decrementQuantity();
+      await expect(productPage.quantityDecrement).toBeDisabled();
       await expect(productPage.quantityInput).toHaveValue("1");
     });
 

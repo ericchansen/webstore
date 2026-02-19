@@ -1,0 +1,286 @@
+name: PR Staging Deploy
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [master, main]
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: pr-staging-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+  STAGING_RESOURCE_GROUP: rg-webstore-staging
+
+jobs:
+  deploy-and-test:
+    name: Deploy & Test PR Staging
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+
+    outputs:
+      app_url: ${{ steps.create-app.outputs.url }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup environment variables
+        id: setup
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          echo "pr_number=${PR_NUMBER}" >> $GITHUB_OUTPUT
+          echo "image_tag=${{ github.sha }}" >> $GITHUB_OUTPUT
+          echo "app_name=ca-pr${PR_NUMBER}" >> $GITHUB_OUTPUT
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Generate PostgreSQL password
+        id: pg_password
+        run: |
+          PASSWORD=$(openssl rand -base64 24 | tr -dc 'a-zA-Z0-9' | head -c 24)
+          echo "::add-mask::${PASSWORD}"
+          echo "password=${PASSWORD}" >> $GITHUB_OUTPUT
+
+      - name: Start PostgreSQL if stopped
+        run: |
+          PG_NAME="psql-pr${{ steps.setup.outputs.pr_number }}"
+          RG="${{ env.STAGING_RESOURCE_GROUP }}"
+          STATE=$(az postgres flexible-server show -g "$RG" -n "$PG_NAME" --query "state" -o tsv 2>/dev/null || echo "NotFound")
+          if [ "$STATE" = "Stopped" ]; then
+            echo "PostgreSQL server is stopped, starting it..."
+            az postgres flexible-server start -g "$RG" -n "$PG_NAME"
+          else
+            echo "PostgreSQL state: $STATE (no action needed)"
+          fi
+
+      - name: Deploy staging infrastructure (ACR, PostgreSQL, CAE)
+        id: infra
+        uses: azure/arm-deploy@v2
+        with:
+          resourceGroupName: ${{ env.STAGING_RESOURCE_GROUP }}
+          template: ./infra/staging/main.bicep
+          deploymentName: staging-pr${{ steps.setup.outputs.pr_number }}
+          parameters: >
+            prNumber=${{ steps.setup.outputs.pr_number }}
+            postgresPassword=${{ steps.pg_password.outputs.password }}
+            postgresLocation=centralus
+          failOnStdErr: false
+
+      - name: Build and push Docker image to ACR
+        run: |
+          ACR_NAME="${{ steps.infra.outputs.acrName }}"
+          IMAGE_TAG="${{ steps.setup.outputs.image_tag }}"
+          az acr build --registry "$ACR_NAME" --image "webstore:${IMAGE_TAG}" --file Dockerfile .
+
+      - name: Create or update Container App
+        id: create-app
+        env:
+          PG_PASSWORD: ${{ steps.pg_password.outputs.password }}
+        run: |
+          set -euo pipefail
+          PR_NUMBER="${{ steps.setup.outputs.pr_number }}"
+          APP_NAME="${{ steps.setup.outputs.app_name }}"
+          ACR_NAME="${{ steps.infra.outputs.acrName }}"
+          ACR_SERVER="${{ steps.infra.outputs.acrLoginServer }}"
+          CAE_NAME="${{ steps.infra.outputs.containerAppsEnvironmentName }}"
+          PG_FQDN="${{ steps.infra.outputs.postgresServerFqdn }}"
+          IMAGE_TAG="${{ steps.setup.outputs.image_tag }}"
+          RG="${{ env.STAGING_RESOURCE_GROUP }}"
+          DATABASE_URL="postgresql://webstoreAdmin:${PG_PASSWORD}@${PG_FQDN}:5432/webstore?sslmode=require"
+
+          # Get ACR credentials for registry auth
+          ACR_USERNAME=$(az acr credential show --name "$ACR_NAME" --query "username" -o tsv)
+          ACR_PASSWORD=$(az acr credential show --name "$ACR_NAME" --query "passwords[0].value" -o tsv)
+
+          if az containerapp show -g "$RG" -n "$APP_NAME" >/dev/null 2>&1; then
+            echo "Updating existing Container App..."
+            az containerapp update \
+              -g "$RG" \
+              -n "$APP_NAME" \
+              --image "${ACR_SERVER}/webstore:${IMAGE_TAG}" \
+              --set-env-vars "DATABASE_URL=${DATABASE_URL}" "NODE_ENV=production"
+          else
+            echo "Creating new Container App..."
+            az containerapp create \
+              -g "$RG" \
+              -n "$APP_NAME" \
+              --environment "$CAE_NAME" \
+              --image "${ACR_SERVER}/webstore:${IMAGE_TAG}" \
+              --ingress external \
+              --target-port 3000 \
+              --min-replicas 1 \
+              --max-replicas 1 \
+              --cpu 0.5 \
+              --memory 1.0Gi \
+              --registry-server "$ACR_SERVER" \
+              --registry-username "$ACR_USERNAME" \
+              --registry-password "$ACR_PASSWORD" \
+              --env-vars "DATABASE_URL=${DATABASE_URL}" "NODE_ENV=production" \
+              --tags "pr-number=${PR_NUMBER}" "environment=staging" "project=webstore"
+          fi
+
+          FQDN=$(az containerapp show -g "$RG" -n "$APP_NAME" --query "properties.configuration.ingress.fqdn" -o tsv)
+          URL="https://${FQDN}"
+          echo "url=${URL}" >> $GITHUB_OUTPUT
+          echo "Staging URL: ${URL}"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Run database migrations
+        env:
+          PG_PASSWORD: ${{ steps.pg_password.outputs.password }}
+        run: |
+          set -euo pipefail
+          PG_FQDN="${{ steps.infra.outputs.postgresServerFqdn }}"
+          RG="${{ env.STAGING_RESOURCE_GROUP }}"
+          DATABASE_URL="postgresql://webstoreAdmin:${PG_PASSWORD}@${PG_FQDN}:5432/webstore?sslmode=require"
+
+          # Get runner's public IP and add temporary firewall rule
+          RUNNER_IP=$(curl -s https://api.ipify.org)
+          echo "Adding firewall rule for runner IP: ${RUNNER_IP}"
+          az postgres flexible-server firewall-rule create \
+            -g "$RG" \
+            -n "psql-pr${{ steps.setup.outputs.pr_number }}" \
+            --rule-name "github-actions-runner" \
+            --start-ip-address "$RUNNER_IP" \
+            --end-ip-address "$RUNNER_IP"
+
+          # Wait for firewall rule to propagate
+          sleep 10
+
+          # Push schema to database
+          echo "Running Prisma db push..."
+          npx prisma db push --url "$DATABASE_URL"
+
+          # Seed database
+          echo "Seeding database..."
+          DATABASE_URL="$DATABASE_URL" npm run db:seed || echo "Seed failed (may be expected if already seeded)"
+
+          # Remove temporary firewall rule
+          az postgres flexible-server firewall-rule delete \
+            -g "$RG" \
+            -n "psql-pr${{ steps.setup.outputs.pr_number }}" \
+            --rule-name "github-actions-runner" \
+            --yes
+
+      - name: Restart Container App after migrations
+        run: |
+          APP_NAME="${{ steps.setup.outputs.app_name }}"
+          RG="${{ env.STAGING_RESOURCE_GROUP }}"
+          echo "Restarting ${APP_NAME} to pick up database changes..."
+          az containerapp revision restart \
+            -g "$RG" \
+            -n "$APP_NAME" \
+            --revision "$(az containerapp revision list -g "$RG" -n "$APP_NAME" --query "[0].name" -o tsv)"
+
+      - name: Wait for staging app to be ready
+        run: |
+          APP_URL="${{ steps.create-app.outputs.url }}"
+          echo "Waiting for ${APP_URL} to be ready..."
+
+          for i in {1..30}; do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${APP_URL}" || echo "000")
+            if [[ "$HTTP_CODE" =~ ^(200|301|302|307|308)$ ]]; then
+              echo "App is ready! (HTTP ${HTTP_CODE})"
+              break
+            fi
+            echo "Attempt $i: HTTP ${HTTP_CODE}, waiting..."
+            sleep 10
+          done
+
+          # Final check
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${APP_URL}" || echo "000")
+          if [[ ! "$HTTP_CODE" =~ ^(200|301|302|307|308)$ ]]; then
+            echo "App did not become ready (HTTP ${HTTP_CODE})"
+            exit 1
+          fi
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps msedge
+
+      - name: Run E2E tests against staging
+        id: e2e
+        continue-on-error: true
+        env:
+          CI: true
+          BASE_URL: ${{ steps.create-app.outputs.url }}
+        run: npx playwright test --project="Desktop Edge" e2e/smoke.spec.ts e2e/homepage.spec.ts e2e/products.spec.ts e2e/product-detail.spec.ts e2e/cart.spec.ts e2e/viewport.spec.ts
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-staging-report
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Post staging comment on PR
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          APP_URL: ${{ steps.create-app.outputs.url }}
+          E2E_OUTCOME: ${{ steps.e2e.outcome }}
+          IMAGE_TAG: ${{ steps.setup.outputs.image_tag }}
+        with:
+          script: |
+            const status = process.env.E2E_OUTCOME === "success" ? "✅ passed" : "❌ failed";
+            const body = [
+              "## 🚀 PR Staging Environment",
+              "",
+              "| Resource | Value |",
+              "|----------|-------|",
+              `| **App URL** | ${process.env.APP_URL} |`,
+              `| **E2E Tests** | ${status} |`,
+              `| **Commit** | \`${process.env.IMAGE_TAG.substring(0, 7)}\` |`,
+              "",
+              "> This environment is ephemeral and will be destroyed when the PR is closed or merged."
+            ].join("\n");
+
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const marker = "## 🚀 PR Staging Environment";
+            const comments = await github.rest.issues.listComments({ owner, repo, issue_number, per_page: 100 });
+            const existing = comments.data.find(c => c.user?.type === "Bot" && c.body?.includes(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
+
+      - name: Deployment summary
+        if: always()
+        run: |
+          echo "## 🚀 PR Staging Deployed!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Resource | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **App URL** | ${{ steps.create-app.outputs.url }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit** | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Fail job when E2E fails
+        if: steps.e2e.outcome != 'success'
+        run: exit 1

@@ -10,9 +10,9 @@ export const viewports = {
 
 export const testProducts = {
   featured: {
-    name: "Classic Dark Truffle Collection",
-    slug: "classic-dark-truffle-collection",
-    price: "$28.99",
+    name: "Salted Caramel Truffles",
+    slug: "salted-caramel-truffles",
+    price: "$24.99",
   },
   chocolateBar: {
     name: "72% Dark Chocolate Bar",

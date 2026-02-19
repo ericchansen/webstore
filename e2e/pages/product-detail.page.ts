@@ -23,21 +23,21 @@ export class ProductDetailPage extends BasePage {
 
   constructor(page: Page) {
     super(page);
-    // Scope selectors to the main product detail section to avoid related products
-    this.productDetail = page.getByTestId("product-detail");
-    this.productImage = page.getByTestId("product-image");
-    this.productGallery = page.getByTestId("product-gallery");
-    this.productName = page.getByTestId("detail-product-name");
-    this.productPrice = page.getByTestId("detail-product-price");
-    this.compareAtPrice = page.getByTestId("compare-at-price");
-    this.productDescription = page.getByTestId("product-description");
-    this.quantityInput = page.getByTestId("quantity-input");
-    this.quantityIncrement = page.getByTestId("quantity-increment");
-    this.quantityDecrement = page.getByTestId("quantity-decrement");
-    this.addToCartButton = page.getByTestId("add-to-cart");
-    this.categoryBreadcrumb = page.getByTestId("category-breadcrumb");
-    this.stockStatus = page.getByTestId("stock-status");
-    this.productMetadata = page.getByTestId("product-metadata");
+    // Scope selectors to the main product detail section to avoid hydration duplicates
+    this.productDetail = page.getByTestId("product-detail").first();
+    this.productImage = this.productDetail.getByTestId("product-image");
+    this.productGallery = this.productDetail.getByTestId("product-gallery");
+    this.productName = this.productDetail.getByTestId("detail-product-name");
+    this.productPrice = this.productDetail.getByTestId("detail-product-price");
+    this.compareAtPrice = this.productDetail.getByTestId("compare-at-price");
+    this.productDescription = this.productDetail.getByTestId("product-description");
+    this.quantityInput = this.productDetail.getByTestId("quantity-input");
+    this.quantityIncrement = this.productDetail.getByTestId("quantity-increment");
+    this.quantityDecrement = this.productDetail.getByTestId("quantity-decrement");
+    this.addToCartButton = this.productDetail.getByTestId("add-to-cart");
+    this.categoryBreadcrumb = page.getByTestId("category-breadcrumb").first();
+    this.stockStatus = this.productDetail.getByTestId("stock-status");
+    this.productMetadata = this.productDetail.getByTestId("product-metadata");
     this.relatedProducts = page.getByTestId("related-products");
   }
 

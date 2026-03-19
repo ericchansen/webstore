@@ -27,7 +27,9 @@ param containerImage string = ''
 var resourceSuffix = '${baseName}-${environment}'
 var acrName = replace('acr${baseName}${environment}', '-', '')
 var kvUniqueSuffix = substring(uniqueString(resourceGroup().id), 0, 6)
-var kvName = 'kv-${baseName}-${environment}-${kvUniqueSuffix}'
+// Shorten environment token so Key Vault name stays within 24-char service limit
+var kvEnvToken = environment == 'staging' ? 'stg' : environment
+var kvName = 'kv-${baseName}-${kvEnvToken}-${kvUniqueSuffix}'
 
 // Log Analytics Workspace (required for Container Apps)
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {

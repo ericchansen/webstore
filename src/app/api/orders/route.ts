@@ -32,6 +32,26 @@ function generateOrderNumber(): string {
 
 export async function POST(request: NextRequest) {
   try {
+    // Demo failure mode — when enabled, checkout fails with a realistic
+    // service error while the rest of the site stays healthy.
+    // Toggle via: DEMO_BROKEN_CHECKOUT=true on the Container App.
+    if (process.env.DEMO_BROKEN_CHECKOUT === "true") {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      console.error(
+        "OrderService: Failed to process order — downstream payment gateway connection refused",
+        {
+          timestamp: new Date().toISOString(),
+          path: "/api/orders",
+          method: "POST",
+          demo: true,
+        }
+      );
+      return NextResponse.json(
+        { error: "Service temporarily unavailable" },
+        { status: 503 }
+      );
+    }
+
     const body: CreateOrderRequest = await request.json();
 
     // Basic validation

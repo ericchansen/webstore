@@ -26,6 +26,8 @@ param containerImage string = ''
 // Naming convention
 var resourceSuffix = '${baseName}-${environment}'
 var acrName = replace('acr${baseName}${environment}', '-', '')
+var kvUniqueSuffix = substring(uniqueString(resourceGroup().id), 0, 6)
+var kvName = 'kv-${baseName}-${environment}-${kvUniqueSuffix}'
 
 // Log Analytics Workspace (required for Container Apps)
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
@@ -113,7 +115,7 @@ resource postgresFirewall 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRul
 
 // Key Vault for secrets
 resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
-  name: 'kv-${resourceSuffix}'
+  name: kvName
   location: location
   properties: {
     sku: {

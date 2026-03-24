@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trace, SpanStatusCode } from "@opentelemetry/api";
 import { prisma } from "@/lib/prisma";
 
 interface OrderItem {
@@ -37,6 +38,18 @@ export async function POST(request: NextRequest) {
     // Toggle via: DEMO_BROKEN_CHECKOUT=true on the Container App.
     if (process.env.DEMO_BROKEN_CHECKOUT === "true") {
       await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      const span = trace.getActiveSpan();
+      if (span) {
+        span.setStatus({ code: SpanStatusCode.ERROR, message: "checkout_failure" });
+        span.setAttribute("error.type", "PaymentGatewayConnectionRefused");
+        span.setAttribute("demo.broken_checkout", true);
+        span.addEvent("checkout_failure", {
+          "failure.reason": "downstream payment gateway connection refused",
+          "failure.component": "OrderService",
+        });
+      }
+
       console.error(
         "OrderService: Failed to process order — downstream payment gateway connection refused",
         {

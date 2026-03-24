@@ -59,5 +59,6 @@ EXPOSE 3000
 
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
+# APPLICATIONINSIGHTS_CONNECTION_STRING — injected at runtime via Container App env vars
 
 CMD ["node", "server.js"]

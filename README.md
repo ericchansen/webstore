@@ -112,7 +112,7 @@ az containerapp update -n <app-name> -g <rg-name> \
 | Layer | Technology |
 |-------|-----------|
 | Framework | Next.js 16 (App Router, React 19) |
-| Database | PostgreSQL 16 via Prisma ORM |
+| Database | PostgreSQL 15 via Prisma ORM |
 | Styling | Tailwind CSS + shadcn/ui |
 | Telemetry | Azure Monitor OpenTelemetry |
 | Container | Docker (Node 20 Alpine, standalone build) |

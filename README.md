@@ -1,36 +1,124 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🍫 Cacao & Co. — Artisan Chocolate Webstore
 
-## Getting Started
+A demo e-commerce storefront for artisan chocolates, built as the **target workload** for the [Azure SRE Agent demo](https://github.com/ericchansen/azure-sre-agent-demo). Browse products, manage a cart, and place orders — or break checkout on demand to trigger automated incident response.
 
-First, run the development server:
+## Architecture
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+┌─────────────┐     ┌──────────────────────┐     ┌─────────────────────┐
+│   Browser    │────▶│  Azure Container App │────▶│  PostgreSQL Flexible│
+│              │     │  (Next.js)           │     │  Server             │
+└─────────────┘     └──────────┬───────────┘     └─────────────────────┘
+                               │
+                    ┌──────────┴───────────┐
+                    │  Application Insights │
+                    │  (OpenTelemetry)      │
+                    └──────────────────────┘
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- **Azure Container Apps** — hosts the Next.js standalone build
+- **Azure Container Registry** — stores Docker images
+- **PostgreSQL Flexible Server** — product catalog, carts, and orders
+- **Application Insights** — OpenTelemetry-based telemetry for request tracing and failure detection
+- **Key Vault** — secrets management (DB credentials, connection strings)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Local Development
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+**Prerequisites:** Node.js 20+, Docker
 
-## Learn More
+```bash
+# 1. Install dependencies
+npm install
 
-To learn more about Next.js, take a look at the following resources:
+# 2. Start PostgreSQL
+docker compose up -d
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# 3. Set up environment
+cp .env.example .env   # or create .env with: DATABASE_URL=postgresql://postgres:postgres@localhost:5432/webstore
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# 4. Run migrations and seed data
+npx prisma migrate dev
+npm run db:seed
 
-## Deploy on Vercel
+# 5. Start dev server
+npm run dev
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Open [http://localhost:3000](http://localhost:3000) to browse the store.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Useful Commands
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start development server |
+| `npm run build` | Production build |
+| `npm run db:migrate` | Run Prisma migrations |
+| `npm run db:seed` | Seed product catalog |
+| `npm run db:studio` | Open Prisma Studio GUI |
+| `npm run lint` | ESLint check |
+| `npm run typecheck` | TypeScript type check |
+
+## Deployment
+
+Infrastructure is defined in Bicep (`infra/main.bicep`) and provisions all Azure resources.
+
+```bash
+# Deploy infrastructure
+./infra/deploy.ps1 -ResourceGroup <rg-name> -Location <region> -PostgresPassword <password>
+```
+
+CI/CD is handled by GitHub Actions:
+
+- **`ci.yml`** — lint, typecheck, and test on every push/PR
+- **`deploy.yml`** — manual workflow dispatch to build, push to ACR, and update the Container App
+- **`pr-staging.yml`** / **`pr-cleanup.yml`** — ephemeral staging environments for PRs
+
+## Demo Failure Mode
+
+The webstore includes a built-in failure toggle for demonstrating Azure SRE Agent capabilities.
+
+### Triggering the Failure
+
+Set the `DEMO_BROKEN_CHECKOUT` environment variable on the Container App:
+
+```bash
+az containerapp update -n <app-name> -g <rg-name> \
+  --set-env-vars DEMO_BROKEN_CHECKOUT=true
+```
+
+### What Happens
+
+When `DEMO_BROKEN_CHECKOUT=true`, the `POST /api/orders` endpoint:
+
+1. Introduces a 1.5-second delay simulating a downstream timeout
+2. Records error attributes and events on the active OpenTelemetry span
+3. Returns **503 Service Unavailable**
+
+Browsing products and managing the cart still work — only checkout is broken.
+
+### SRE Agent Response
+
+The companion [Azure SRE Agent](https://github.com/ericchansen/azure-sre-agent-demo) detects the spike in 503 errors via Application Insights, investigates the telemetry, traces the failure to the source code, and recommends a rollback or env var fix.
+
+### Restoring Normal Operation
+
+```bash
+az containerapp update -n <app-name> -g <rg-name> \
+  --set-env-vars DEMO_BROKEN_CHECKOUT=false
+```
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Framework | Next.js 16 (App Router, React 19) |
+| Database | PostgreSQL 16 via Prisma ORM |
+| Styling | Tailwind CSS + shadcn/ui |
+| Telemetry | Azure Monitor OpenTelemetry |
+| Container | Docker (Node 20 Alpine, standalone build) |
+| Infrastructure | Bicep → Azure Container Apps, ACR, Key Vault, PostgreSQL Flexible Server |
+| CI/CD | GitHub Actions |
+
+## Companion Repo
+
+👉 [ericchansen/azure-sre-agent-demo](https://github.com/ericchansen/azure-sre-agent-demo) — Bicep templates for deploying the Azure SRE Agent that monitors this webstore.

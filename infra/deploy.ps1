@@ -98,6 +98,7 @@ Write-Host "📋 Outputs:" -ForegroundColor Cyan
 Write-Host "   Container Registry: $($deployment.containerRegistryLoginServer.value)" -ForegroundColor Gray
 Write-Host "   PostgreSQL Server:  $($deployment.postgresServerFqdn.value)" -ForegroundColor Gray
 Write-Host "   Key Vault:          $($deployment.keyVaultUri.value)" -ForegroundColor Gray
+Write-Host "   App Insights:       $($deployment.applicationInsightsAppId.value)" -ForegroundColor Gray
 
 if ($deployment.containerAppUrl.value) {
     Write-Host "   App URL:            $($deployment.containerAppUrl.value)" -ForegroundColor Green

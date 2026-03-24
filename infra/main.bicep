@@ -43,6 +43,17 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
   }
 }
 
+// Application Insights (backed by Log Analytics workspace)
+resource applicationInsights 'Microsoft.Insights/components@2020-02-02' = {
+  name: 'appi-${resourceSuffix}'
+  location: location
+  kind: 'web'
+  properties: {
+    Application_Type: 'web'
+    WorkspaceResourceId: logAnalytics.id
+  }
+}
+
 // Container Registry
 resource containerRegistry 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
   name: acrName
@@ -169,6 +180,10 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = if (!empty(cont
           name: 'database-url'
           value: 'postgresql://${postgresAdminLogin}:${postgresAdminPassword}@${postgresServer.properties.fullyQualifiedDomainName}:5432/webstore?sslmode=require'
         }
+        {
+          name: 'appinsights-connection-string'
+          value: applicationInsights.properties.ConnectionString
+        }
       ]
     }
     template: {
@@ -189,6 +204,10 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = if (!empty(cont
               name: 'NODE_ENV'
               value: 'production'
             }
+            {
+              name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+              secretRef: 'appinsights-connection-string'
+            }
           ]
         }
       ]
@@ -207,3 +226,5 @@ output containerAppsEnvironmentId string = containerAppsEnv.id
 output containerAppUrl string = !empty(containerImage) ? 'https://${containerApp.properties.configuration.ingress.fqdn}' : ''
 output postgresServerFqdn string = postgresServer.properties.fullyQualifiedDomainName
 output keyVaultUri string = keyVault.properties.vaultUri
+output applicationInsightsConnectionString string = applicationInsights.properties.ConnectionString
+output applicationInsightsAppId string = applicationInsights.properties.AppId

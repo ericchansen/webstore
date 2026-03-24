@@ -226,5 +226,4 @@ output containerAppsEnvironmentId string = containerAppsEnv.id
 output containerAppUrl string = !empty(containerImage) ? 'https://${containerApp.properties.configuration.ingress.fqdn}' : ''
 output postgresServerFqdn string = postgresServer.properties.fullyQualifiedDomainName
 output keyVaultUri string = keyVault.properties.vaultUri
-output applicationInsightsConnectionString string = applicationInsights.properties.ConnectionString
 output applicationInsightsAppId string = applicationInsights.properties.AppId

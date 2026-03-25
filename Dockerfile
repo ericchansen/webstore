@@ -53,6 +53,14 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # Copy Prisma files for runtime
 COPY --from=deps --chown=nextjs:nodejs /app/src/generated ./src/generated
 
+# Copy OpenTelemetry + Azure Monitor packages and all transitive dependencies for
+# runtime instrumentation. Next.js standalone file tracing doesn't follow the
+# dynamic import in instrumentation.ts, so we copy the full node_modules.
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules ./node_modules
+
+# Copy the telemetry preload script
+COPY --from=builder --chown=nextjs:nodejs /app/telemetry-preload.js ./
+
 USER nextjs
 
 EXPOSE 3000
@@ -61,4 +69,4 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 # APPLICATIONINSIGHTS_CONNECTION_STRING — injected at runtime via Container App env vars
 
-CMD ["node", "server.js"]
+CMD ["node", "--require", "./telemetry-preload.js", "server.js"]

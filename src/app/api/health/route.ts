@@ -10,6 +10,9 @@ export async function GET() {
     uptime: process.uptime(),
   };
 
+  // Database check is informational — it does NOT affect the HTTP status.
+  // This keeps the health endpoint as a pure liveness check so a sleeping
+  // DB doesn't mask the intentional checkout failure during the demo.
   try {
     const start = Date.now();
     await prisma.$queryRaw`SELECT 1`;
@@ -18,13 +21,11 @@ export async function GET() {
       latencyMs: Date.now() - start,
     };
   } catch (error) {
-    health.status = "degraded";
     health.database = {
       status: "error",
       error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 
-  const statusCode = health.status === "ok" ? 200 : 503;
-  return NextResponse.json(health, { status: statusCode });
+  return NextResponse.json(health, { status: 200 });
 }

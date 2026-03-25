@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { trace, SpanStatusCode } from "@opentelemetry/api";
 import { prisma } from "@/lib/prisma";
 
-const tracer = trace.getTracer("webstore", "1.0.0");
+const tracer = trace.getTracer("webstore");
 
 interface OrderItem {
   productId: string;

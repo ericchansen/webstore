@@ -15,6 +15,13 @@ RUN npm ci
 # Generate Prisma client
 RUN npx prisma generate
 
+# Production-only dependencies (no devDependencies) for the final image
+FROM base AS prod-deps
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+
 # Rebuild the source code only when needed
 FROM base AS builder
 WORKDIR /app
@@ -53,10 +60,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # Copy Prisma files for runtime
 COPY --from=deps --chown=nextjs:nodejs /app/src/generated ./src/generated
 
-# Copy OpenTelemetry + Azure Monitor packages and all transitive dependencies for
-# runtime instrumentation. Next.js standalone file tracing doesn't follow the
-# dynamic import in instrumentation.ts, so we copy the full node_modules.
-COPY --from=deps --chown=nextjs:nodejs /app/node_modules ./node_modules
+# Copy production-only node_modules (excludes devDependencies) for OpenTelemetry,
+# Azure Monitor, and all transitive runtime dependencies. Next.js standalone file
+# tracing doesn't follow the dynamic import in instrumentation.ts.
+COPY --from=prod-deps --chown=nextjs:nodejs /app/node_modules ./node_modules
 
 # Copy the telemetry preload script
 COPY --from=builder --chown=nextjs:nodejs /app/telemetry-preload.js ./

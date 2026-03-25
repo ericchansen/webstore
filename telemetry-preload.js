@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-require-imports, react-hooks/rules-of-hooks */
 // Preload script — initializes Azure Monitor OpenTelemetry before the Next.js server starts.
 // Loaded via: node --require ./telemetry-preload.js server.js
 const connectionString = process.env.APPLICATIONINSIGHTS_CONNECTION_STRING;

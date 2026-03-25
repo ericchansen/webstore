@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // CJS Node.js preload script — not part of the React/TS app
+    "telemetry-preload.js",
   ]),
 ]);
 

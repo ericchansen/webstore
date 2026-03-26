@@ -20,7 +20,7 @@ FROM base AS prod-deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev --ignore-scripts
+RUN HUSKY=0 npm ci --omit=dev
 
 # Rebuild the source code only when needed
 FROM base AS builder

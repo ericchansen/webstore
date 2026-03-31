@@ -105,6 +105,37 @@ async function handlePost(
       );
     }
 
+    // Validate that all product IDs exist before attempting order creation.
+    // This prevents Prisma P2003 foreign key constraint violations on
+    // OrderItem_productId_fkey when carts contain stale or deleted product IDs.
+    const requestedProductIds = body.items.map((item) => item.productId);
+    const existingProducts = await prisma.product.findMany({
+      where: { id: { in: requestedProductIds } },
+      select: { id: true },
+    });
+    const existingProductIds = new Set(existingProducts.map((p) => p.id));
+    const invalidProductIds = requestedProductIds.filter(
+      (id) => !existingProductIds.has(id)
+    );
+
+    if (invalidProductIds.length > 0) {
+      span.setAttribute("http.status_code", 400);
+      span.setAttribute("order.invalid_product_ids", invalidProductIds.join(","));
+      span.addEvent("order_validation_failed", {
+        "validation.reason": "invalid_product_ids",
+        "validation.invalid_ids": invalidProductIds.join(","),
+      });
+      span.end();
+      return NextResponse.json(
+        {
+          error:
+            "Some items in your cart are no longer available. Please refresh your cart and try again.",
+          invalidProductIds,
+        },
+        { status: 400 }
+      );
+    }
+
     // Create order
     const order = await prisma.order.create({
       data: {

@@ -71,7 +71,7 @@ CI/CD is handled by GitHub Actions:
 
 - **`ci.yml`** — lint, typecheck, and test on every push/PR
 - **`deploy.yml`** — manual workflow dispatch to build, push to ACR, and update the Container App
-- **`pr-staging.yml`** / **`pr-cleanup.yml`** — ephemeral staging environments for PRs
+- **`pr-staging.yml`** / **`pr-cleanup.yml`** — *(deactivated)* ephemeral staging environments for PRs (workflow files renamed to `.yml.disabled`)
 
 ## Demo Failure Mode
 

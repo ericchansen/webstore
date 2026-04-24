@@ -3,8 +3,8 @@
 
 targetScope = 'resourceGroup'
 
-@description('Environment name (dev, staging, prod)')
-@allowed(['dev', 'staging', 'prod'])
+@description('Environment name (dev, prod)')
+@allowed(['dev', 'prod'])
 param environment string = 'dev'
 
 @description('Azure region for resources')

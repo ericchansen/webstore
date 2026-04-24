@@ -3,10 +3,6 @@ name: Deploy
 on:
   workflow_dispatch:
     inputs:
-
-permissions:
-  id-token: write
-  contents: read
       environment:
         description: 'Deployment environment'
         required: true
@@ -15,6 +11,10 @@ permissions:
         options:
           - dev
           - prod
+
+permissions:
+  id-token: write
+  contents: read
 
 env:
   NODE_VERSION: '20'

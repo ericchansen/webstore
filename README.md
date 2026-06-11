@@ -71,7 +71,6 @@ CI/CD is handled by GitHub Actions:
 
 - **`ci.yml`** — lint, typecheck, and test on every push/PR
 - **`deploy.yml`** — manual workflow dispatch to build, push to ACR, run production readiness/compliance gates, and update the Container App
-- **`pr-staging.yml`** / **`pr-cleanup.yml`** — *(deactivated)* ephemeral staging environments for PRs (workflow files renamed to `.yml.disabled`)
 
 ### Production hardening controls
 
@@ -81,7 +80,7 @@ CI/CD is handled by GitHub Actions:
 - **Secret lifecycle enforcement**:
   - Bicep sets `DATABASE-URL` expiration metadata.
   - Bicep assigns Azure Policy controls for Key Vault secret expiration and max validity.
-  - Deploy workflow blocks on non-compliant secret expiry and supports controlled rotation (`rotate_db_secret=true`).
+  - Deploy workflow blocks on non-compliant secret expiry; rotate credentials with an Azure-native runbook/process before redeploying.
 
 ## Demo Failure Mode
 

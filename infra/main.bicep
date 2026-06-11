@@ -27,7 +27,7 @@ param containerImage string = ''
 param enablePostgresPrivateEndpoint bool = environment == 'prod'
 
 @description('Enable managed virtual network resources for Container Apps and private endpoint connectivity.')
-param enableNetworkIsolation bool = environment == 'prod'
+param enableNetworkIsolation bool = enablePostgresPrivateEndpoint
 
 @description('Address space for the managed virtual network.')
 param virtualNetworkAddressPrefix string = '10.50.0.0/16'
@@ -54,7 +54,7 @@ param secretValidityDays int = 90
 param keyVaultMaxSecretValidityDays int = 90
 
 @description('Deployment timestamp used for deterministic secret-expiry computation.')
-param deploymentUtc string = utcNow('u')
+param deploymentUtc string = utcNow()
 
 // Naming convention
 var resourceSuffix = '${baseName}-${environment}'
@@ -124,7 +124,7 @@ resource virtualNetwork 'Microsoft.Network/virtualNetworks@2023-09-01' = if (dep
   }
 }
 
-resource containerAppsInfrastructureSubnet 'Microsoft.Network/virtualNetworks/subnets@2023-09-01' = if (deployManagedNetwork) {
+resource containerAppsInfrastructureSubnet 'Microsoft.Network/virtualNetworks/subnets@2023-09-01' = if (enableNetworkIsolation) {
   parent: virtualNetwork
   name: 'snet-containerapps-infra'
   properties: {
@@ -140,7 +140,7 @@ resource containerAppsInfrastructureSubnet 'Microsoft.Network/virtualNetworks/su
   }
 }
 
-resource privateEndpointSubnet 'Microsoft.Network/virtualNetworks/subnets@2023-09-01' = if (deployManagedNetwork) {
+resource privateEndpointSubnet 'Microsoft.Network/virtualNetworks/subnets@2023-09-01' = if (enablePostgresPrivateEndpoint) {
   parent: virtualNetwork
   name: 'snet-private-endpoints'
   properties: {
@@ -163,7 +163,7 @@ resource containerAppsEnv 'Microsoft.App/managedEnvironments@2023-05-01' = {
           sharedKey: logAnalytics.listKeys().primarySharedKey
         }
       }
-    }, deployManagedNetwork ? {
+    }, enableNetworkIsolation ? {
       vnetConfiguration: {
         infrastructureSubnetId: containerAppsInfrastructureSubnet.id
         internal: false
@@ -173,7 +173,7 @@ resource containerAppsEnv 'Microsoft.App/managedEnvironments@2023-05-01' = {
 }
 
 // PostgreSQL Flexible Server
-resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-03-01-preview' = {
+resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2024-08-01' = {
   name: 'psql-${resourceSuffix}'
   location: location
   tags: postgresOpsTags
@@ -195,11 +195,14 @@ resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-03-01-pr
     highAvailability: {
       mode: 'Disabled'
     }
+    network: {
+      publicNetworkAccess: postgresPublicNetworkAccess
+    }
   }
 }
 
 // PostgreSQL Database
-resource postgresDb 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2023-03-01-preview' = {
+resource postgresDb 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2024-08-01' = {
   parent: postgresServer
   name: 'webstore'
   properties: {
@@ -208,17 +211,8 @@ resource postgresDb 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2023-03
   }
 }
 
-resource postgresPublicNetworkAccessConfiguration 'Microsoft.DBforPostgreSQL/flexibleServers/configurations@2023-03-01-preview' = {
-  parent: postgresServer
-  name: 'public_network_access'
-  properties: {
-    value: toLower(postgresPublicNetworkAccess)
-    source: 'user-override'
-  }
-}
-
 // Firewall rule to allow Azure services
-resource postgresFirewall 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRules@2023-03-01-preview' = if (postgresPublicNetworkAccess == 'Enabled') {
+resource postgresFirewall 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRules@2024-08-01' = if (postgresPublicNetworkAccess == 'Enabled') {
   parent: postgresServer
   name: 'AllowAzureServices'
   properties: {

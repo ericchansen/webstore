@@ -124,15 +124,11 @@ infra/                      # Azure infrastructure (Bicep/deployment)
 │   ├── main.bicep          # Production infrastructure
 │   ├── main.bicepparam     # Production parameters
 │   ├── deploy.ps1          # Manual deployment script
-│   ├── destroy.ps1         # Manual teardown script
-│   └── staging/
-│       └── main.bicep      # Per-PR staging infrastructure
+│   └── destroy.ps1         # Manual teardown script
 
 .github/workflows/
 ├── ci.yml                  # CI pipeline (lint, typecheck, unit tests, E2E, build)
-├── deploy.yml              # Production deployment pipeline (manual dispatch)
-├── pr-staging.yml.disabled # PR staging deploy (deactivated)
-└── pr-cleanup.yml.disabled # PR staging cleanup (deactivated)
+└── deploy.yml              # Production deployment pipeline (manual dispatch)
 ```
 
 ---
@@ -191,37 +187,6 @@ Defined in `.github/workflows/ci.yml`. Runs on PRs and pushes to `main`/`master`
 3. **Unit Tests** — Vitest (requires `npx prisma generate` first)
 4. **E2E Tests** — Playwright Desktop Edge tests with PostgreSQL service container
 5. **Build** — Production build (runs after lint + typecheck + unit tests pass)
-
----
-
-## PR Staging Environments *(Deactivated)*
-
-> **Note:** PR staging environments have been deactivated. The workflow files have been renamed to `.yml.disabled` and will not run. The documentation below is retained for reference.
-
-Previously defined in `.github/workflows/pr-staging.yml` and `.github/workflows/pr-cleanup.yml` (now `.yml.disabled`).
-
-**On PR opened/updated** (`pr-staging.yml.disabled`):
-1. Deploys isolated Azure infrastructure per PR (PostgreSQL, Container Apps Environment, Container App) via Bicep in `infra/staging/main.bicep`
-2. Builds and pushes Docker image to shared ACR in `rg-webstore-staging`
-3. Creates/updates a Container App (`ca-pr<N>`) with the PR's code
-4. Runs Playwright E2E tests against the deployed staging URL
-5. Posts a PR comment with the staging URL and E2E results
-
-**On PR closed/merged** (`pr-cleanup.yml.disabled`):
-1. Deletes all Azure resources tagged with `pr-number=<N>`
-2. Updates the PR comment to indicate the environment was destroyed
-
-### GitHub Secrets Required (not currently in use)
-| Secret | Description |
-|--------|-------------|
-| `AZURE_CLIENT_ID` | OIDC App Registration client ID |
-| `AZURE_TENANT_ID` | Entra ID tenant ID |
-| `AZURE_SUBSCRIPTION_ID` | Azure subscription ID |
-
-### Azure Resources (not currently provisioned)
-- **Resource Group:** `rg-webstore-staging` (shared, persistent)
-- **ACR:** `acrwebstorestaging` (shared across PRs)
-- **Per-PR:** PostgreSQL Flexible Server, Container Apps Environment, Container App, Log Analytics
 
 ---
 

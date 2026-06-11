@@ -11,11 +11,6 @@ on:
         options:
           - dev
           - prod
-      rotate_db_secret:
-        description: 'Rotate DATABASE-URL secret and postgres admin password if secret policy is non-compliant'
-        required: false
-        default: false
-        type: boolean
 
 permissions:
   id-token: write
@@ -25,7 +20,6 @@ env:
   NODE_VERSION: '20'
   AZURE_RESOURCE_GROUP: rg-webstore-${{ inputs.environment || 'dev' }}
   SECRET_ROTATION_THRESHOLD_DAYS: '14'
-  SECRET_VALIDITY_DAYS: '90'
 
 jobs:
   build-and-push:
@@ -115,9 +109,7 @@ jobs:
             POSTGRES_SERVER="psql-webstore-${ENVIRONMENT}"
             CONTAINER_APP="ca-webstore-${ENVIRONMENT}"
             SECRET_NAME="DATABASE-URL"
-            ROTATE_SECRET="${{ inputs.rotate_db_secret }}"
             ROTATION_THRESHOLD_DAYS="${{ env.SECRET_ROTATION_THRESHOLD_DAYS }}"
-            SECRET_VALIDITY_DAYS="${{ env.SECRET_VALIDITY_DAYS }}"
             ACR_SERVER="acrwebstore${ENVIRONMENT}.azurecr.io"
             IMAGE="${ACR_SERVER}/webstore:${{ github.sha }}"
 
@@ -148,47 +140,17 @@ jobs:
 
             if [ -z "$SECRET_EXPIRY" ]; then
               echo "::error::Key Vault secret $SECRET_NAME is missing expiration metadata."
-              if [ "$ROTATE_SECRET" != "true" ]; then
-                echo "Re-run with rotate_db_secret=true after confirming maintenance window."
-                exit 1
-              fi
+              exit 1
             else
               NOW_EPOCH=$(date -u +%s)
               EXPIRY_EPOCH=$(date -u -d "$SECRET_EXPIRY" +%s)
               DAYS_LEFT=$(( (EXPIRY_EPOCH - NOW_EPOCH) / 86400 ))
 
-              if [ "$DAYS_LEFT" -lt "$ROTATION_THRESHOLD_DAYS" ] && [ "$ROTATE_SECRET" != "true" ]; then
+              if [ "$DAYS_LEFT" -lt "$ROTATION_THRESHOLD_DAYS" ]; then
                 echo "::error::Key Vault secret $SECRET_NAME expires in $DAYS_LEFT day(s), below threshold $ROTATION_THRESHOLD_DAYS."
-                echo "Re-run with rotate_db_secret=true to rotate credentials during deployment."
+                echo "Rotate the secret using an Azure-native runbook/process, then redeploy."
                 exit 1
               fi
-            fi
-
-            if [ "$ROTATE_SECRET" = "true" ]; then
-              echo "Rotating PostgreSQL admin password and DATABASE-URL secret..."
-              NEW_PASSWORD=$(openssl rand -base64 24 | tr -dc 'A-Za-z0-9' | head -c 24)
-              PG_FQDN=$(az postgres flexible-server show \
-                --name "$POSTGRES_SERVER" \
-                --resource-group "$RESOURCE_GROUP" \
-                --query "fullyQualifiedDomainName" -o tsv)
-              NEW_DATABASE_URL="postgresql://webstoreAdmin:${NEW_PASSWORD}@${PG_FQDN}:5432/webstore?sslmode=require"
-              NEW_EXPIRY=$(date -u -d "+${SECRET_VALIDITY_DAYS} days" +"%Y-%m-%dT%H:%M:%SZ")
-
-              az postgres flexible-server update \
-                --name "$POSTGRES_SERVER" \
-                --resource-group "$RESOURCE_GROUP" \
-                --admin-password "$NEW_PASSWORD" >/dev/null
-
-              az keyvault secret set \
-                --vault-name "$KV_NAME" \
-                --name "$SECRET_NAME" \
-                --value "$NEW_DATABASE_URL" \
-                --expires "$NEW_EXPIRY" >/dev/null
-
-              az containerapp secret set \
-                --name "$CONTAINER_APP" \
-                --resource-group "$RESOURCE_GROUP" \
-                --secrets "database-url=$NEW_DATABASE_URL" >/dev/null
             fi
 
             az containerapp update \

@@ -111,7 +111,8 @@ jobs:
             SECRET_NAME="DATABASE-URL"
             ROTATION_THRESHOLD_DAYS="${{ env.SECRET_ROTATION_THRESHOLD_DAYS }}"
             ACR_SERVER="acrwebstore${ENVIRONMENT}.azurecr.io"
-            IMAGE="${ACR_SERVER}/webstore:${{ github.sha }}"
+            SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+            IMAGE="${ACR_SERVER}/webstore:${SHORT_SHA}"
 
             PG_STATE=$(az postgres flexible-server show \
               --name "$POSTGRES_SERVER" \

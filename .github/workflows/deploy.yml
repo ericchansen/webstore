@@ -153,6 +153,12 @@ jobs:
               fi
             fi
 
+            # Fetch the database URL from Key Vault for Container App secrets
+            DATABASE_URL=$(az keyvault secret show \
+              --vault-name "$KV_NAME" \
+              --name "$SECRET_NAME" \
+              --query "value" -o tsv)
+
             # Create-or-update pattern: first deploy creates the Container App;
             # subsequent deploys just update the image.
             if az containerapp show --name "$CONTAINER_APP" --resource-group "$RESOURCE_GROUP" &>/dev/null; then
@@ -171,7 +177,7 @@ jobs:
                 --ingress external \
                 --min-replicas 0 \
                 --max-replicas 3 \
-                --secrets "database-url=keyvaultref:${KV_NAME}/DATABASE-URL,identityref:system" \
+                --secrets "database-url=$DATABASE_URL" \
                 --env-vars "DATABASE_URL=secretref:database-url" "NODE_ENV=production"
             fi
 

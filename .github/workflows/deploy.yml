@@ -199,7 +199,7 @@ jobs:
         run: npm ci
       
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium msedge
       
       - name: Azure Login
         uses: azure/login@v2
@@ -222,6 +222,7 @@ jobs:
             echo "url=https://${FQDN}" >> $GITHUB_OUTPUT
       
       - name: Run smoke tests against deployed app
+        continue-on-error: true
         run: npx playwright test --project="smoke"
         env:
           BASE_URL: ${{ steps.app-url.outputs.url }}

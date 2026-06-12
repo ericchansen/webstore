@@ -222,7 +222,7 @@ jobs:
             echo "url=https://${FQDN}" >> $GITHUB_OUTPUT
       
       - name: Run smoke tests against deployed app
-        run: npx playwright test --project="Desktop Edge" || npx playwright test --project="chromium"
+        run: npx playwright test --project="smoke"
         env:
           BASE_URL: ${{ steps.app-url.outputs.url }}
           CI: true

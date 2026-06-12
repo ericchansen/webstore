@@ -23,7 +23,7 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "prepare": "husky"
+    "prepare": "husky || true"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.3.0",

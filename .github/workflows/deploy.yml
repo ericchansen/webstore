@@ -153,10 +153,27 @@ jobs:
               fi
             fi
 
-            az containerapp update \
-              --name "$CONTAINER_APP" \
-              --resource-group "$RESOURCE_GROUP" \
-              --image $IMAGE
+            # Create-or-update pattern: first deploy creates the Container App;
+            # subsequent deploys just update the image.
+            if az containerapp show --name "$CONTAINER_APP" --resource-group "$RESOURCE_GROUP" &>/dev/null; then
+              az containerapp update \
+                --name "$CONTAINER_APP" \
+                --resource-group "$RESOURCE_GROUP" \
+                --image "$IMAGE"
+            else
+              az containerapp create \
+                --name "$CONTAINER_APP" \
+                --resource-group "$RESOURCE_GROUP" \
+                --environment "cae-webstore-${ENVIRONMENT}" \
+                --image "$IMAGE" \
+                --registry-server "$ACR_SERVER" \
+                --target-port 3000 \
+                --ingress external \
+                --min-replicas 0 \
+                --max-replicas 3 \
+                --secrets "database-url=keyvaultref:${KV_NAME}/DATABASE-URL,identityref:system" \
+                --env-vars "DATABASE_URL=secretref:database-url" "NODE_ENV=production"
+            fi
 
   smoke-test:
     name: Smoke Tests

@@ -60,17 +60,31 @@ Open [http://localhost:3000](http://localhost:3000) to browse the store.
 
 ## Deployment
 
+The `rg-webstore-prod` demo is being retired. The deployment script rejects both
+the `prod` environment and that resource group before accessing Azure. The
+[deployment workflow](.github/workflows/deploy.yml) offers only `dev`; reusable
+[Bicep templates](infra/main.bicep) and local development remain available.
+These source changes do not delete existing Azure resources. Retiring the SRE
+target workload also requires reviewing the saved SRE agent's references before
+an authorized owner tears it down.
+
 Infrastructure is defined in Bicep (`infra/main.bicep`) and provisions all Azure resources.
 
 ```bash
 # Deploy infrastructure
-./infra/deploy.ps1 -ResourceGroup <rg-name> -Location <region> -PostgresPassword <password>
+./infra/deploy.ps1 -Environment dev -ResourceGroup <rg-name> -Location <region> -PostgresPassword <secure-string>
 ```
 
 CI/CD is handled by GitHub Actions:
 
 - **`ci.yml`** — lint, typecheck, and test on every push/PR
-- **`deploy.yml`** — manual workflow dispatch to build, push to ACR, run production readiness/compliance gates, and update the Container App
+- **`deploy.yml`** — manual `dev` workflow dispatch to build, push to ACR, run readiness/compliance gates, and update the Container App
+
+Check the production retirement guard without Azure access:
+
+```powershell
+.\infra\deploy.tests.ps1
+```
 
 ### Production hardening controls
 

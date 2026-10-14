@@ -3,7 +3,7 @@
     Deploy Webstore infrastructure to Azure using Bicep
 
 .PARAMETER Environment
-    Target environment: dev, staging, or prod
+    Target environment: dev or staging. The production demo is being retired.
 
 .PARAMETER ResourceGroup
     Name of the Azure resource group (will be created if it doesn't exist)
@@ -20,8 +20,6 @@
 .EXAMPLE
     ./deploy.ps1 -Environment dev -ResourceGroup rg-webstore-dev -PostgresPassword "SecureP@ss123!"
 
-.EXAMPLE
-    ./deploy.ps1 -Environment prod -ResourceGroup rg-webstore-prod -PostgresPassword "SecureP@ss123!" -ContainerImage "acrwebstoreprod.azurecr.io/webstore:v1.0.0"
 #>
 
 param(
@@ -43,6 +41,10 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+if ($Environment -eq "prod" -or $ResourceGroup -eq "rg-webstore-prod") {
+    throw "The production Webstore demo is being retired. Deployment to prod or rg-webstore-prod is blocked."
+}
 
 Write-Host "🚀 Deploying Webstore infrastructure to Azure..." -ForegroundColor Cyan
 Write-Host "   Environment: $Environment" -ForegroundColor Gray
